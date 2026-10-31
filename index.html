@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f2937">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<title>Завдання</title>
+<style>
+  :root { --bg:#f4f5f7; --panel:#fff; --text:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#db4c3f; --ok:#2f855a; --warn:#d97706; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f172a; --panel:#1f2937; --text:#f3f4f6; --muted:#9ca3af; --line:#374151; --accent:#f87171; --ok:#68d391; --warn:#fbbf24; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--text); }
+  .app { display:flex; height:100dvh; }
+  aside { width:250px; background:var(--panel); border-right:1px solid var(--line); padding:16px 8px; overflow:auto; flex-shrink:0; }
+  aside h2 { font-size:12px; text-transform:uppercase; color:var(--muted); margin:16px 8px 6px; letter-spacing:.05em; }
+  .proj { display:flex; justify-content:space-between; align-items:center; padding:7px 10px; border-radius:8px; cursor:pointer; gap:8px; }
+  .proj > span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .proj:hover { background:var(--bg); }
+  .proj.active { background:var(--bg); font-weight:600; color:var(--accent); }
+  .proj .n { color:var(--muted); font-size:13px; font-weight:400; }
+  .proj .n.bad { color:var(--accent); font-weight:600; }
+  .add-proj { width:100%; margin-top:8px; padding:8px 10px; border:1px dashed var(--line); background:none; color:var(--muted); border-radius:8px; cursor:pointer; text-align:left; font:inherit; }
+  main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  header { display:flex; align-items:center; gap:12px; padding:16px 20px 8px; flex-wrap:wrap; }
+  header h1 { font-size:22px; margin:0; }
+  header .sub { color:var(--muted); font-size:14px; text-transform:capitalize; }
+  .acts { margin-left:auto; display:flex; gap:6px; }
+  .acts button { background:var(--panel); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:6px 10px; cursor:pointer; font:inherit; font-size:13px; }
+  #menu { display:none; background:none; border:0; font-size:22px; color:var(--text); }
+  .list { flex:1; overflow:auto; padding:8px 20px 24px; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .chip { padding:6px 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; font-size:14px; }
+  .chip small { color:var(--muted); margin-left:4px; }
+
+  /* дашборд */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:16px; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; cursor:pointer; }
+  .stat .v { font-size:26px; font-weight:700; line-height:1.1; }
+  .stat .l { font-size:13px; color:var(--muted); margin-top:2px; }
+  .stat.bad .v { color:var(--accent); }
+  .dash { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); align-items:start; }
+  .col { display:flex; flex-direction:column; gap:16px; min-width:0; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+  .card.over { border-left:4px solid var(--accent); }
+  .card h3 { font-size:15px; margin:0 0 6px; display:flex; gap:8px; align-items:baseline; }
+  .card h3 .c { color:var(--muted); font-weight:400; font-size:13px; }
+  .card.over h3 { color:var(--accent); }
+  .bar { height:6px; border-radius:3px; background:var(--line); margin:4px 0 8px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--ok); }
+  .day { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:12px 0 2px; }
+  .none { color:var(--muted); font-size:14px; padding:6px 0; }
+
+  .task { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .task:last-child { border-bottom:0; }
+  .task input[type=checkbox] { width:22px; height:22px; accent-color:var(--accent); flex-shrink:0; }
+  .task .tm { width:48px; flex-shrink:0; font-size:13px; font-weight:600; line-height:1.15; }
+  .task .tm small { display:block; font-weight:400; color:var(--muted); }
+  .task .tm.no { color:var(--muted); font-weight:400; }
+  .task .body { flex:1; min-width:0; cursor:pointer; }
+  .task .t { word-break:break-word; }
+  .task.done .t { text-decoration:line-through; color:var(--muted); }
+  .task .meta { display:flex; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:2px; }
+  .meta .late { color:var(--accent); font-weight:600; }
+  .meta .warn { color:var(--warn); font-weight:600; }
+  .task .del { background:none; border:0; color:var(--muted); font-size:18px; cursor:pointer; opacity:.6; }
+  .empty { color:var(--muted); text-align:center; margin-top:60px; }
+  .projlist { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:6px 16px; }
+
+  /* форми (швидке додавання і редагування) */
+  .quick { padding:12px 20px calc(12px + env(safe-area-inset-bottom)); background:var(--panel); border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
+  .quick input, .quick select, .quick button, .edit input, .edit select, .edit button { font:inherit; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); }
+  .quick input:focus, .quick select:focus, .edit input:focus, .edit select:focus { outline:2px solid var(--accent); }
+  #q-title, #e-title { width:100%; padding:14px 16px; border-radius:12px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .row label { display:flex; flex-direction:column; font-size:11px; color:var(--muted); gap:2px; }
+  .row label.grow { flex:1; min-width:130px; }
+  .row select, .row input { width:100%; }
+  .row .go, .go { align-self:flex-end; background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important; font-weight:600; cursor:pointer; }
+  .dt { position:relative; display:flex; gap:4px; }
+  .dt input.date { flex:1; min-width:0; }
+  .dt .cal { padding:6px 9px; cursor:pointer; }
+  .dt input.hid { position:absolute; left:0; bottom:0; width:1px; height:1px; opacity:0; pointer-events:none; padding:0; border:0; }
+  input.bad { outline:2px solid var(--accent); }
+  details.more summary { cursor:pointer; font-size:13px; color:var(--muted); padding:2px 0 6px; user-select:none; }
+  dialog { border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--text); padding:18px; width:min(560px, 94vw); }
+  dialog::backdrop { background:#0006; }
+  .edit h2 { margin:0 0 10px; font-size:18px; }
+  .edit .row { margin-top:8px; }
+  .edit .sp { flex:1; }
+  .edit .danger { color:var(--accent); cursor:pointer; }
+  .edit .row button { cursor:pointer; }
+  @media (max-width:720px) {
+    aside { position:fixed; inset:0 auto 0 0; z-index:5; transform:translateX(-100%); transition:transform .2s; box-shadow:2px 0 12px #0004; }
+    aside.open { transform:none; }
+    #menu { display:block; }
+    .dash { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="side">
+    <div id="home"></div>
+    <h2>Проєкти</h2>
+    <div id="projects"></div>
+    <button class="add-proj" id="addProj">+ Новий проєкт</button>
+  </aside>
+  <main>
+    <header>
+      <button id="menu" aria-label="Меню">☰</button>
+      <h1 id="title">Головна</h1>
+      <span class="sub" id="sub"></span>
+      <span class="acts" id="acts"></span>
+    </header>
+    <div class="list" id="list"></div>
+    <form class="quick" id="quick"></form>
+  </main>
+</div>
+
+<dialog id="dlg"><form class="edit" id="editForm"></form></dialog>
+
+<script>
+// ---------- Сховище (пізніше тут підключимо хмарну синхронізацію) ----------
+// Проєкт:   { id, name, parent ('' = верхній рівень) }
+// Завдання: { id, title, project, due (дедлайн), sched (дата плану), schedTime (час плану), duration (хв), done, created }
+// Дати зберігаються як YYYY-MM-DD, показуються як дд.мм.рррр.
+const store = {
+  load() { try { return JSON.parse(localStorage.getItem('tasks-v1')) || null; } catch { return null; } },
+  save(state) { localStorage.setItem('tasks-v1', JSON.stringify(state)); }
+};
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const INBOX = 'inbox', HOME = 'home', NEW = '__new__';
+let state = store.load() || { projects: [{ id: INBOX, name: 'Вхідні', parent: '' }], tasks: [] };
+
+// міграція зі старих версій
+for (const p of state.projects) p.parent = p.parent || '';
+for (const t of state.tasks) {
+  if ('time' in t) { t.schedTime = t.time || ''; t.sched = t.time ? (t.due || '') : ''; delete t.time; }
+  t.due = t.due || ''; t.sched = t.sched || ''; t.schedTime = t.schedTime || ''; t.duration = t.duration || 0;
+}
+
+let current = HOME, lastCurrent = null, editing = null;
+const save = () => store.save(state);
+const $ = id => document.getElementById(id);
+
+// ---------- Дати та час ----------
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const shift = n => { const d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)); };
+const fmt = iso => iso ? iso.split('-').reverse().join('.') : '';            // 2026-10-31 -> 31.10.2026
+function parseDMY(s) {                                                         // 31.10.2026 -> 2026-10-31, '' якщо порожньо, null якщо невірно
+  s = s.trim(); if (!s) return '';
+  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); if (!m) return null;
+  const [, d, mo, y] = m, dt = new Date(+y, +mo - 1, +d);
+  if (dt.getFullYear() !== +y || dt.getMonth() !== +mo - 1 || dt.getDate() !== +d) return null;
+  return `${y}-${mo}-${d}`;
+}
+function parseHM(s) {                                                          // 14:30 (24 години); '' якщо порожньо, null якщо невірно
+  s = s.trim(); if (!s) return '';
+  const m = s.match(/^(\d{2}):(\d{2})$/);
+  return (!m || +m[1] > 23 || +m[2] > 59) ? null : s;
+}
+const dayTitle = s => (s === shift(1) ? 'Завтра · ' : '') + fmt(s) + ' · ' + parse(s).toLocaleDateString('uk-UA', { weekday: 'long' });
+function addMin(t, min) {
+  const [h, m] = t.split(':').map(Number);
+  const tot = Math.min(h * 60 + m + min, 23 * 60 + 59);
+  return `${pad(Math.floor(tot / 60))}:${pad(tot % 60)}`;
+}
+const fmtDur = m => m < 60 ? `${m} хв` : (m % 60 ? `${Math.floor(m / 60)} год ${m % 60} хв` : `${m / 60} год`);
+const endOf = t => (t.schedTime && t.duration) ? addMin(t.schedTime, t.duration) : '';
+
+const when = t => t.sched || t.due || '';          // дата, за якою завдання потрапляє в дашборд
+const dueLate = t => !t.done && t.due && t.due < ymd(new Date());
+const planLate = t => {
+  if (t.done || !t.sched) return false;
+  const now = new Date(), today = ymd(now);
+  if (t.sched < today) return true;
+  if (t.sched === today && t.schedTime) return (endOf(t) || t.schedTime) < hm(now);
+  return false;
+};
+const isOverdue = t => !!(dueLate(t) || planLate(t));
+const byPlan = (a, b) =>
+  (when(a) || '9999').localeCompare(when(b) || '9999') ||
+  (a.schedTime || '99:99').localeCompare(b.schedTime || '99:99') ||
+  a.created - b.created;
+
+// ---------- Проєкти та підпроєкти ----------
+const children = pid => state.projects.filter(p => p.parent === pid);
+const byId = id => state.projects.find(p => p.id === id);
+function flatTree() {
+  const out = [];
+  const walk = (pid, depth) => { for (const p of children(pid)) { out.push({ p, depth }); walk(p.id, depth + 1); } };
+  walk('', 0);
+  return out;
+}
+function descendantIds(pid) {
+  const s = new Set([pid]);
+  const walk = id => children(id).forEach(c => { s.add(c.id); walk(c.id); });
+  walk(pid);
+  return s;
+}
+function projPath(id) {
+  const names = []; let p = byId(id);
+  while (p) { names.unshift(p.name); p = p.parent ? byId(p.parent) : null; }
+  return names.join(' / ');
+}
+// "Дім / Ремонт / Кухня" -> знаходить або створює весь ланцюжок, повертає id останнього
+function createProjectPath(input, base = '') {
+  if (!input) return null;
+  const parts = input.split('/').map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  let parent = base;
+  for (const name of parts) {
+    let p = state.projects.find(x => x.parent === parent && x.name.toLowerCase() === name.toLowerCase());
+    if (!p) { p = { id: uid(), name, parent }; state.projects.push(p); }
+    parent = p.id;
+  }
+  return parent;
+}
+function fillProjectSelect(sel, value) {
+  sel.innerHTML = '';
+  for (const { p, depth } of flatTree()) {
+    const o = document.createElement('option');
+    o.value = p.id;
+    o.textContent = '\u00A0\u00A0\u00A0'.repeat(depth) + (depth ? '└ ' : '') + p.name;
+    sel.appendChild(o);
+  }
+  const n = document.createElement('option');
+  n.value = NEW; n.textContent = '＋ Новий проєкт / підпроєкт…';
+  sel.appendChild(n);
+  sel.value = byId(value) ? value : INBOX;
+  sel.dataset.prev = sel.value;
+}
+function deleteProject(id) {
+  const p = byId(id); if (!p || id === INBOX) return;
+  const kids = children(id).length, cnt = state.tasks.filter(t => t.project === id).length;
+  const target = p.parent || INBOX;
+  if (!confirm(`Видалити проєкт «${p.name}»?\nЗавдання (${cnt}) та підпроєкти (${kids}) буде переміщено до «${projPath(target)}».`)) return;
+  state.tasks.forEach(t => { if (t.project === id) t.project = target; });
+  children(id).forEach(c => { c.parent = p.parent; });
+  state.projects = state.projects.filter(x => x.id !== id);
+  current = p.parent || HOME; save(); render();
+}
+
+// ---------- Поля форми (спільні для додавання та редагування) ----------
+const dateField = (id, label) => `<label class="grow">${label}<span class="dt">
+  <input type="text" class="date" id="${id}" inputmode="numeric" placeholder="дд.мм.рррр" maxlength="10" autocomplete="off">
+  <button type="button" class="cal" title="Календар">📅</button>
+  <input type="date" class="hid" tabindex="-1" aria-hidden="true"></span></label>`;
+const projField = p => `<label class="grow">Проєкт / підпроєкт<select id="${p}-proj" class="projsel"></select></label>`;
+const timeField = p => `<label class="grow">Час<input type="text" class="clock" id="${p}-time" inputmode="numeric" placeholder="гг:хх" maxlength="5" autocomplete="off"></label>`;
+const durField = p => `<label class="grow">Тривалість<select id="${p}-dur">
+  <option value="">—</option><option value="15">15 хв</option><option value="30">30 хв</option>
+  <option value="45">45 хв</option><option value="60">1 год</option><option value="90">1,5 год</option>
+  <option value="120">2 год</option><option value="180">3 год</option><option value="240">4 год</option></select></label>`;
+
+$('quick').innerHTML = `
+  <input id="q-title" placeholder="Нове завдання…" autocomplete="off">
+  <div class="row">${projField('q')}${dateField('q-due', 'Дедлайн')}<button class="go" type="submit">Додати</button></div>
+  <details class="more" id="more"><summary>Планування: коли і на скільки</summary>
+    <div class="row">${dateField('q-sched', 'Запланувати на')}${timeField('q')}${durField('q')}</div></details>`;
+
+$('editForm').innerHTML = `
+  <h2>Редагування завдання</h2>
+  <input id="e-title" placeholder="Назва завдання" autocomplete="off">
+  <div class="row">${projField('e')}${dateField('e-due', 'Дедлайн')}</div>
+  <div class="row">${dateField('e-sched', 'Запланувати на')}${timeField('e')}${durField('e')}</div>
+  <div class="row"><button type="button" class="danger" id="eDel">Видалити</button><span class="sp"></span>
+    <button type="button" id="eCancel">Скасувати</button><button type="submit" class="go">Зберегти</button></div>`;
+
+function readDate(id) {
+  const el = $(id), iso = parseDMY(el.value);
+  if (iso === null) { el.classList.add('bad'); el.focus(); alert('Дата має бути у форматі дд.мм.рррр (наприклад, 31.10.2026).'); return null; }
+  return iso;
+}
+function readFields(p) {
+  const title = $(p + '-title').value.trim();
+  if (!title) { $(p + '-title').focus(); return null; }
+  const due = readDate(p + '-due'); if (due === null) return null;
+  let sched = readDate(p + '-sched'); if (sched === null) return null;
+  const tEl = $(p + '-time'), schedTime = parseHM(tEl.value);
+  if (schedTime === null) { tEl.classList.add('bad'); tEl.focus(); alert('Час має бути у форматі гг:хх, 24 години (наприклад, 14:30).'); return null; }
+  if (schedTime && !sched) sched = ymd(new Date());              // час без дати = сьогодні
+  return { title, project: $(p + '-proj').value || INBOX, due, sched, schedTime,
+           duration: parseInt($(p + '-dur').value) || 0 };
+}
+function fillFields(p, t) {
+  $(p + '-title').value = t.title;
+  fillProjectSelect($(p + '-proj'), t.project);
+  $(p + '-due').value = fmt(t.due); $(p + '-sched').value = fmt(t.sched);
+  $(p + '-time').value = t.schedTime; $(p + '-dur').value = t.duration ? String(t.duration) : '';
+  document.querySelectorAll('input.bad').forEach(e => e.classList.remove('bad'));
+}
+
+// маска дд.мм.рррр, календар, створення проєкту зі списку
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (el.matches('input.clock')) {
+    const c = el.value.replace(/\D/g, '').slice(0, 4);
+    el.value = c.length > 2 ? c.slice(0, 2) + ':' + c.slice(2) : c;
+    el.classList.remove('bad'); return;
+  }
+  if (!el.matches('input.date')) return;
+  const d = el.value.replace(/\D/g, '').slice(0, 8);
+  let o = d.slice(0, 2);
+  if (d.length > 2) o += '.' + d.slice(2, 4);
+  if (d.length > 4) o += '.' + d.slice(4);
+  el.value = o; el.classList.remove('bad');
+});
+document.addEventListener('focusout', e => {
+  const el = e.target;
+  if (el.matches && el.matches('input.date')) el.classList.toggle('bad', parseDMY(el.value) === null);
+  if (el.matches && el.matches('input.clock')) el.classList.toggle('bad', parseHM(el.value) === null);
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('.cal');
+  if (!b) return;
+  const txt = b.parentElement.querySelector('input.date'), hid = b.parentElement.querySelector('input.hid');
+  hid.value = parseDMY(txt.value) || '';
+  try { hid.showPicker(); } catch { hid.click(); }
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.matches('input.hid')) {
+    const txt = el.parentElement.querySelector('input.date');
+    txt.value = fmt(el.value); txt.classList.remove('bad'); return;
+  }
+  if (el.matches('select.projsel')) {
+    if (el.value !== NEW) { el.dataset.prev = el.value; return; }
+    const id = createProjectPath(prompt('Назва нового проєкту.\nДля підпроєкту вкажіть шлях через « / », наприклад: Дім / Ремонт'));
+    if (!id) { el.value = el.dataset.prev || INBOX; return; }
+    save(); render(); fillProjectSelect(el, id);
+  }
+});
+
+// ---------- Елементи ----------
+function mk(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function taskRow(t, o = {}) {
+  const row = mk('div', 'task' + (t.done ? ' done' : ''));
+  if (o.timeCol) {
+    const tm = mk('div', 'tm' + (t.schedTime ? '' : ' no'));
+    if (t.schedTime) {
+      tm.textContent = t.schedTime;
+      const end = endOf(t);
+      if (end) tm.appendChild(mk('small', '', '–' + end));
+    } else tm.textContent = '—';
+    row.appendChild(tm);
+  }
+  const cb = mk('input'); cb.type = 'checkbox'; cb.checked = t.done;
+  cb.onchange = () => { t.done = cb.checked; save(); render(); };
+  row.appendChild(cb);
+
+  const body = mk('div', 'body');
+  body.title = 'Натисніть, щоб редагувати';
+  body.onclick = () => openEdit(t);
+  body.appendChild(mk('div', 't', t.title));
+  const meta = mk('div', 'meta');
+  const chip = (text, cls) => meta.appendChild(mk('span', cls || '', text));
+
+  const dStr = o.showDate && t.sched ? fmt(t.sched) : '';
+  const tStr = (!o.timeCol && t.schedTime) ? (t.schedTime + (endOf(t) ? '–' + endOf(t) : '')) : '';
+  if (dStr || tStr) chip('🗓 ' + [dStr, tStr].filter(Boolean).join(' '), planLate(t) ? 'late' : '');
+  if (t.duration) chip('⏱ ' + fmtDur(t.duration));
+  if (t.due && t.due !== t.sched)
+    chip('⏳ дедлайн ' + fmt(t.due), dueLate(t) ? 'late' : (!t.done && t.due === shift(0)) ? 'warn' : '');
+  if (o.showProject) chip('# ' + projPath(t.project));
+  if (meta.children.length) body.appendChild(meta);
+  row.appendChild(body);
+
+  const del = mk('button', 'del', '✕'); del.setAttribute('aria-label', 'Видалити');
+  del.onclick = () => { state.tasks = state.tasks.filter(x => x !== t); save(); render(); };
+  row.appendChild(del);
+  return row;
+}
+
+function card(id, title, count, cls) {
+  const c = mk('div', 'card ' + (cls || '')); c.id = 'sec-' + id;
+  const h = mk('h3'); h.appendChild(mk('span', '', title)); h.appendChild(mk('span', 'c', count));
+  c.appendChild(h);
+  return c;
+}
+
+// ---------- Редагування ----------
+function openEdit(t) {
+  editing = t;
+  fillFields('e', t);
+  $('dlg').showModal();
+}
+$('editForm').onsubmit = e => {
+  e.preventDefault();
+  const v = readFields('e'); if (!v) return;
+  Object.assign(editing, v);
+  save(); $('dlg').close(); render();
+};
+$('eCancel').onclick = () => $('dlg').close();
+$('eDel').onclick = () => {
+  if (!confirm('Видалити це завдання?')) return;
+  state.tasks = state.tasks.filter(x => x !== editing);
+  save(); $('dlg').close(); render();
+};
+
+// ---------- Рендер ----------
+function render() {
+  const now = new Date(), today = ymd(now);
+  const openT = state.tasks.filter(t => !t.done);
+  const overdue = openT.filter(isOverdue).sort(byPlan);
+
+  // бічна панель (дерево проєктів)
+  const nav = (id, name, count, bad, depth = 0) => {
+    const el = mk('div', 'proj' + (id === current ? ' active' : ''));
+    el.style.paddingLeft = (10 + depth * 16) + 'px';
+    el.appendChild(mk('span', '', name));
+    el.appendChild(mk('span', 'n' + (bad ? ' bad' : ''), count || ''));
+    el.onclick = () => { current = id; $('side').classList.remove('open'); render(); };
+    return el;
+  };
+  $('home').innerHTML = '';
+  $('home').appendChild(nav(HOME, '🏠 Головна', overdue.length, true));
+  $('projects').innerHTML = '';
+  for (const { p, depth } of flatTree()) {
+    const ids = descendantIds(p.id);
+    $('projects').appendChild(nav(p.id, p.name, openT.filter(t => ids.has(t.project)).length, false, depth));
+  }
+
+  // список проєктів у формі швидкого додавання
+  const sel = $('q-proj'), prev = sel.value;
+  const want = current !== lastCurrent ? (current !== HOME ? current : INBOX) : (byId(prev) ? prev : INBOX);
+  fillProjectSelect(sel, want);
+  lastCurrent = current;
+
+  const list = $('list'), acts = $('acts');
+  list.innerHTML = ''; acts.innerHTML = '';
+
+  if (current !== HOME && !byId(current)) current = HOME;
+
+  if (current !== HOME) {
+    const proj = byId(current);
+    $('title').textContent = projPath(current);
+    $('sub').textContent = '';
+    const act = (text, fn) => { const b = mk('button', '', text); b.onclick = fn; acts.appendChild(b); };
+    act('＋ Підпроєкт', () => {
+      const id = createProjectPath(prompt(`Назва підпроєкту в «${proj.name}»:`), current);
+      if (id) { save(); render(); }
+    });
+    if (current !== INBOX) {
+      act('✎ Перейменувати', () => {
+        const n = prompt('Нова назва проєкту:', proj.name);
+        if (n && n.trim()) { proj.name = n.trim(); save(); render(); }
+      });
+      act('🗑 Видалити', () => deleteProject(current));
+    }
+
+    const kids = children(current);
+    if (kids.length) {
+      const chips = mk('div', 'chips');
+      for (const k of kids) {
+        const ids = descendantIds(k.id);
+        const c = mk('div', 'chip', k.name);
+        c.appendChild(mk('small', '', String(openT.filter(t => ids.has(t.project)).length)));
+        c.onclick = () => { current = k.id; render(); };
+        chips.appendChild(c);
+      }
+      list.appendChild(chips);
+    }
+
+    const ids = descendantIds(current);
+    const tasks = state.tasks.filter(t => ids.has(t.project)).sort((a, b) => a.done - b.done || byPlan(a, b));
+    if (!tasks.length) { list.appendChild(mk('div', 'empty', 'Тут поки порожньо 🎉')); return; }
+    const box = mk('div', 'projlist');
+    tasks.forEach(t => box.appendChild(taskRow(t, { showDate: true, showProject: t.project !== current })));
+    list.appendChild(box);
+    return;
+  }
+
+  // ----- Головна -----
+  $('title').textContent = 'Головна';
+  $('sub').textContent = now.toLocaleDateString('uk-UA', { weekday: 'long' }) + ' · ' + fmt(today);
+
+  const todayAll = state.tasks.filter(t => when(t) === today && !isOverdue(t))
+    .sort((a, b) => a.done - b.done || byPlan(a, b));
+  const todayDone = todayAll.filter(t => t.done).length;
+  const upcoming = openT.filter(t => when(t) > today).sort(byPlan);
+  const nodate = openT.filter(t => !when(t)).sort((a, b) => b.created - a.created);
+
+  const stats = mk('div', 'stats');
+  [
+    ['over', 'Пропущені', overdue.length, overdue.length ? 'bad' : ''],
+    ['today', 'Сьогодні', `${todayDone}/${todayAll.length}`, ''],
+    ['up', 'Майбутні', upcoming.length, ''],
+    ['none', 'Без дати', nodate.length, ''],
+  ].forEach(([k, label, v, cls]) => {
+    const s = mk('div', 'stat ' + cls);
+    s.appendChild(mk('div', 'v', String(v))); s.appendChild(mk('div', 'l', label));
+    s.onclick = () => { const el = $('sec-' + k); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    stats.appendChild(s);
+  });
+  list.appendChild(stats);
+
+  const dash = mk('div', 'dash');
+  const left = mk('div', 'col'), right = mk('div', 'col');
+
+  if (overdue.length) {
+    const c = card('over', 'Пропущені', overdue.length, 'over');
+    overdue.forEach(t => c.appendChild(taskRow(t, { showDate: true, showProject: true })));
+    left.appendChild(c);
+  }
+
+  const ct = card('today', 'Сьогодні', todayAll.length ? `${todayDone} з ${todayAll.length} виконано` : '');
+  if (todayAll.length) {
+    const bar = mk('div', 'bar'), fill = mk('i'); fill.style.width = (100 * todayDone / todayAll.length) + '%';
+    bar.appendChild(fill); ct.appendChild(bar);
+    todayAll.forEach(t => ct.appendChild(taskRow(t, { timeCol: true, showProject: true })));
+  } else ct.appendChild(mk('div', 'none', 'На сьогодні нічого немає 🎉'));
+  left.appendChild(ct);
+
+  const cu = card('up', 'Майбутні', upcoming.length || '');
+  if (upcoming.length) {
+    let last = '';
+    for (const t of upcoming) {
+      if (when(t) !== last) { last = when(t); cu.appendChild(mk('div', 'day', dayTitle(last))); }
+      cu.appendChild(taskRow(t, { timeCol: true, showProject: true }));
+    }
+  } else cu.appendChild(mk('div', 'none', 'Нічого не заплановано'));
+  right.appendChild(cu);
+
+  if (nodate.length) {
+    const cn = card('none', 'Без дати', nodate.length);
+    nodate.forEach(t => cn.appendChild(taskRow(t, { showProject: true })));
+    right.appendChild(cn);
+  }
+
+  dash.appendChild(left); dash.appendChild(right);
+  list.appendChild(dash);
+}
+
+// ---------- Швидке додавання ----------
+$('quick').onsubmit = e => {
+  e.preventDefault();
+  const v = readFields('q'); if (!v) return;
+  state.tasks.push({ id: uid(), ...v, done: false, created: Date.now() });
+  ['q-title', 'q-due', 'q-sched', 'q-time'].forEach(id => $(id).value = '');
+  $('q-dur').value = ''; $('more').open = false;
+  save(); render(); $('q-title').focus();
+};
+
+$('addProj').onclick = () => {
+  const id = createProjectPath(prompt('Назва проєкту.\nДля підпроєкту вкажіть шлях через « / », наприклад: Дім / Ремонт'));
+  if (id) { current = id; save(); render(); }
+};
+
+$('menu').onclick = () => $('side').classList.toggle('open');
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement.tagName;
+  if (e.key.toLowerCase() === 'q' && tag !== 'INPUT' && tag !== 'SELECT' && !$('dlg').open) {
+    e.preventDefault(); $('q-title').focus();
+  }
+});
+
+save(); render();
+setInterval(render, 60000);   // оновлювати «пропущені» щохвилини
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
