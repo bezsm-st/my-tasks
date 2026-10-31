@@ -24,6 +24,10 @@
   .proj .n { color:var(--muted); font-size:13px; font-weight:400; }
   .proj .n.bad { color:var(--accent); font-weight:600; }
   .add-proj { width:100%; margin-top:8px; padding:8px 10px; border:1px dashed var(--line); background:none; color:var(--muted); border-radius:8px; cursor:pointer; text-align:left; font:inherit; }
+  .syncbar { margin-top:16px; padding:10px 8px 0; border-top:1px solid var(--line); }
+  .syncbar button { width:100%; padding:8px 10px; border:1px solid var(--line); background:none; color:var(--text); border-radius:8px; cursor:pointer; text-align:left; font:inherit; }
+  .syncbar .st { font-size:12px; color:var(--muted); margin-top:6px; word-break:break-word; }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; word-break:break-word; }
   main { flex:1; display:flex; flex-direction:column; min-width:0; }
   header { display:flex; align-items:center; gap:12px; padding:16px 20px 8px; flex-wrap:wrap; }
   header h1 { font-size:22px; margin:0; }
@@ -108,6 +112,10 @@
     <h2>Проєкти</h2>
     <div id="projects"></div>
     <button class="add-proj" id="addProj">+ Новий проєкт</button>
+    <div class="syncbar">
+      <button id="syncBtn">☁ Синхронізація</button>
+      <div class="st" id="syncStatus"></div>
+    </div>
   </aside>
   <main>
     <header>
@@ -123,6 +131,21 @@
 
 <dialog id="dlg"><form class="edit" id="editForm"></form></dialog>
 
+<dialog id="syncDlg"><form class="edit" id="syncForm">
+  <h2>Синхронізація (Supabase)</h2>
+  <div class="row"><label class="grow">Project URL<input id="s-url" placeholder="https://xxxx.supabase.co" autocomplete="off"></label></div>
+  <div class="row"><label class="grow">Публічний ключ (anon / publishable)<input id="s-key" autocomplete="off"></label></div>
+  <div class="row">
+    <label class="grow">Email<input id="s-email" type="email" autocomplete="username"></label>
+    <label class="grow">Пароль<input id="s-pass" type="password" autocomplete="current-password"></label>
+  </div>
+  <div class="hint" id="s-info"></div>
+  <div class="row"><button type="button" id="s-out">Вийти</button><span class="sp"></span>
+    <button type="button" id="s-close">Закрити</button><button type="submit" class="go">Зберегти й синхронізувати</button></div>
+</form></dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 // ---------- Сховище (пізніше тут підключимо хмарну синхронізацію) ----------
 // Проєкт:   { id, name, parent ('' = верхній рівень) }
@@ -135,17 +158,19 @@ const store = {
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const INBOX = 'inbox', HOME = 'home', NEW = '__new__';
-let state = store.load() || { projects: [{ id: INBOX, name: 'Вхідні', parent: '' }], tasks: [] };
+let state = store.load() || { projects: [{ id: INBOX, name: 'Вхідні', parent: '', u: 1 }], tasks: [] };
 
 // міграція зі старих версій
-for (const p of state.projects) p.parent = p.parent || '';
+for (const p of state.projects) { p.parent = p.parent || ''; p.u = p.u || 1; }
+state.tomb = state.tomb || { projects: [], tasks: [] };   // «надгробки» видалених елементів для синхронізації
 for (const t of state.tasks) {
   if ('time' in t) { t.schedTime = t.time || ''; t.sched = t.time ? (t.due || '') : ''; delete t.time; }
   t.due = t.due || ''; t.sched = t.sched || ''; t.schedTime = t.schedTime || ''; t.duration = t.duration || 0;
+  t.u = t.u || t.created || 1;
 }
 
 let current = HOME, lastCurrent = null, editing = null;
-const save = () => store.save(state);
+const save = () => { store.save(state); scheduleSync(); };
 const $ = id => document.getElementById(id);
 
 // ---------- Дати та час ----------
@@ -219,7 +244,7 @@ function createProjectPath(input, base = '') {
   let parent = base;
   for (const name of parts) {
     let p = state.projects.find(x => x.parent === parent && x.name.toLowerCase() === name.toLowerCase());
-    if (!p) { p = { id: uid(), name, parent }; state.projects.push(p); }
+    if (!p) { p = { id: uid(), name, parent, u: Date.now() }; state.projects.push(p); }
     parent = p.id;
   }
   return parent;
@@ -243,9 +268,10 @@ function deleteProject(id) {
   const kids = children(id).length, cnt = state.tasks.filter(t => t.project === id).length;
   const target = p.parent || INBOX;
   if (!confirm(`Видалити проєкт «${p.name}»?\nЗавдання (${cnt}) та підпроєкти (${kids}) буде переміщено до «${projPath(target)}».`)) return;
-  state.tasks.forEach(t => { if (t.project === id) t.project = target; });
-  children(id).forEach(c => { c.parent = p.parent; });
+  state.tasks.forEach(t => { if (t.project === id) { t.project = target; touch(t); } });
+  children(id).forEach(c => { c.parent = p.parent; touch(c); });
   state.projects = state.projects.filter(x => x.id !== id);
+  state.tomb.projects.push({ id, u: Date.now() });
   current = p.parent || HOME; save(); render();
 }
 
@@ -360,7 +386,7 @@ function taskRow(t, o = {}) {
     row.appendChild(tm);
   }
   const cb = mk('input'); cb.type = 'checkbox'; cb.checked = t.done;
-  cb.onchange = () => { t.done = cb.checked; save(); render(); };
+  cb.onchange = () => { t.done = cb.checked; touch(t); save(); render(); };
   row.appendChild(cb);
 
   const body = mk('div', 'body');
@@ -381,7 +407,7 @@ function taskRow(t, o = {}) {
   row.appendChild(body);
 
   const del = mk('button', 'del', '✕'); del.setAttribute('aria-label', 'Видалити');
-  del.onclick = () => { state.tasks = state.tasks.filter(x => x !== t); save(); render(); };
+  del.onclick = () => removeTask(t);
   row.appendChild(del);
   return row;
 }
@@ -402,14 +428,13 @@ function openEdit(t) {
 $('editForm').onsubmit = e => {
   e.preventDefault();
   const v = readFields('e'); if (!v) return;
-  Object.assign(editing, v);
+  Object.assign(editing, v); touch(editing);
   save(); $('dlg').close(); render();
 };
 $('eCancel').onclick = () => $('dlg').close();
 $('eDel').onclick = () => {
   if (!confirm('Видалити це завдання?')) return;
-  state.tasks = state.tasks.filter(x => x !== editing);
-  save(); $('dlg').close(); render();
+  $('dlg').close(); removeTask(editing);
 };
 
 // ---------- Рендер ----------
@@ -458,7 +483,7 @@ function render() {
     if (current !== INBOX) {
       act('✎ Перейменувати', () => {
         const n = prompt('Нова назва проєкту:', proj.name);
-        if (n && n.trim()) { proj.name = n.trim(); save(); render(); }
+        if (n && n.trim()) { proj.name = n.trim(); touch(proj); save(); render(); }
       });
       act('🗑 Видалити', () => deleteProject(current));
     }
@@ -546,11 +571,168 @@ function render() {
   list.appendChild(dash);
 }
 
+// ---------- Синхронізація (Supabase) ----------
+// Кожен елемент має мітку зміни `u` (мс). Під час синхронізації перемагає новіший запис.
+// Видалені елементи лишаються «надгробками» у state.tomb, щоб видалення дійшло до інших пристроїв.
+function touch(o) { o.u = Date.now(); return o; }
+function removeTask(t) {
+  state.tasks = state.tasks.filter(x => x !== t);
+  state.tomb.tasks.push({ id: t.id, u: Date.now() });
+  save(); render();
+}
+
+const SPEC = {
+  projects: {
+    row: p => ({ id: p.id, name: p.name, parent: p.parent, deleted: false, u: p.u }),
+    tomb: (id, u) => ({ id, name: '', parent: '', deleted: true, u }),
+    from: r => ({ id: r.id, name: r.name, parent: r.parent || '', u: Number(r.u) }),
+  },
+  tasks: {
+    row: t => ({ id: t.id, title: t.title, project: t.project, due: t.due, sched: t.sched, sched_time: t.schedTime,
+                 duration: t.duration, done: t.done, created: t.created, deleted: false, u: t.u }),
+    tomb: (id, u) => ({ id, title: '', project: '', due: '', sched: '', sched_time: '',
+                        duration: 0, done: false, created: 0, deleted: true, u }),
+    from: r => ({ id: r.id, title: r.title, project: r.project || INBOX, due: r.due || '', sched: r.sched || '',
+                  schedTime: r.sched_time || '', duration: r.duration || 0, done: !!r.done,
+                  created: Number(r.created) || 0, u: Number(r.u) }),
+  },
+};
+
+const cfg = {
+  get() { try { return JSON.parse(localStorage.getItem('sync-cfg')) || {}; } catch { return {}; } },
+  set(v) { localStorage.setItem('sync-cfg', JSON.stringify(v)); }
+};
+let sb = null, syncTimer = null, syncing = false, syncAgain = false;
+
+function initClient() {
+  const c = cfg.get();
+  sb = (window.supabase && c.url && c.key) ? window.supabase.createClient(c.url, c.key) : null;
+}
+function setStatus(kind, msg) {
+  const text = {
+    off: '☁ Синхронізацію не налаштовано',
+    login: '☁ Потрібен вхід',
+    busy: '☁ Синхронізація…',
+    offline: '☁ Офлайн — синхронізую пізніше',
+    ok: '☁ Синхронізовано ' + hm(new Date()),
+    err: '⚠ ' + (msg || 'помилка'),
+  }[kind];
+  $('syncStatus').textContent = text; $('s-info').textContent = text;
+}
+function scheduleSync(delay = 1500) {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncNow, delay);
+}
+
+async function fetchAll(table) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from(table).select('*').order('id').range(from, from + 999);
+    if (error) throw error;
+    out.push(...data);
+    if (data.length < 1000) break;
+  }
+  return out;
+}
+
+function mergeKind(kind, remote) {
+  const S = SPEC[kind];
+  const live = new Map(state[kind].map(x => [x.id, x]));
+  const tomb = new Map(state.tomb[kind].map(x => [x.id, x.u]));
+  const remoteIds = new Set(), pushIds = new Set();
+  let changed = false;
+  for (const r of remote) {
+    r.u = Number(r.u); remoteIds.add(r.id);
+    const l = live.get(r.id);
+    const lu = l ? (l.u || 0) : tomb.has(r.id) ? tomb.get(r.id) : -1;
+    if (r.u > lu) {                                     // віддалений запис новіший
+      changed = true;
+      if (r.deleted) { live.delete(r.id); tomb.set(r.id, r.u); }
+      else { if (l) Object.assign(l, S.from(r)); else live.set(r.id, S.from(r)); tomb.delete(r.id); }
+    } else if (r.u < lu) pushIds.add(r.id);             // локальний запис новіший
+  }
+  for (const id of live.keys()) if (!remoteIds.has(id)) pushIds.add(id);
+  for (const id of tomb.keys()) if (!remoteIds.has(id)) pushIds.add(id);
+  state[kind] = [...live.values()];
+  state.tomb[kind] = [...tomb].map(([id, u]) => ({ id, u }));
+  return { changed, pushIds };
+}
+function buildRows(kind, ids) {
+  const S = SPEC[kind];
+  const live = new Map(state[kind].map(x => [x.id, x]));
+  const tomb = new Map(state.tomb[kind].map(x => [x.id, x.u]));
+  return [...ids].map(id => live.has(id) ? S.row(live.get(id)) : tomb.has(id) ? S.tomb(id, tomb.get(id)) : null).filter(Boolean);
+}
+function repair(pushP, pushT) {                         // «осиротілі» посилання після злиття
+  if (!byId(INBOX)) state.projects.unshift({ id: INBOX, name: 'Вхідні', parent: '', u: 1 });
+  const pids = new Set(state.projects.map(p => p.id));
+  let fixed = false;
+  for (const p of state.projects) if (p.parent && !pids.has(p.parent)) { p.parent = ''; touch(p); pushP.add(p.id); fixed = true; }
+  for (const t of state.tasks) if (!pids.has(t.project)) { t.project = INBOX; touch(t); pushT.add(t.id); fixed = true; }
+  return fixed;
+}
+
+async function syncNow() {
+  if (!sb) { setStatus(window.supabase || !cfg.get().url ? 'off' : 'err', 'не завантажено бібліотеку синхронізації (потрібен інтернет)'); return; }
+  if (!navigator.onLine) { setStatus('offline'); return; }
+  if (syncing) { syncAgain = true; return; }
+  syncing = true; setStatus('busy');
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { setStatus('login'); return; }
+    const [rp, rt] = await Promise.all([fetchAll('projects'), fetchAll('tasks')]);
+    const a = mergeKind('projects', rp), b = mergeKind('tasks', rt);
+    const fixed = repair(a.pushIds, b.pushIds);
+    const prow = buildRows('projects', a.pushIds), trow = buildRows('tasks', b.pushIds);
+    if (prow.length) { const { error } = await sb.from('projects').upsert(prow, { onConflict: 'id' }); if (error) throw error; }
+    if (trow.length) { const { error } = await sb.from('tasks').upsert(trow, { onConflict: 'id' }); if (error) throw error; }
+    store.save(state);
+    if (a.changed || b.changed || fixed) render();
+    setStatus('ok');
+  } catch (err) {
+    setStatus('err', err.message || String(err));
+  } finally {
+    syncing = false;
+    if (syncAgain) { syncAgain = false; scheduleSync(500); }
+  }
+}
+
+$('syncBtn').onclick = () => {
+  const c = cfg.get();
+  $('s-url').value = c.url || ''; $('s-key').value = c.key || ''; $('s-email').value = c.email || ''; $('s-pass').value = '';
+  $('syncDlg').showModal();
+};
+$('s-close').onclick = () => $('syncDlg').close();
+$('s-out').onclick = async () => { if (sb) await sb.auth.signOut(); setStatus('login'); };
+$('syncForm').onsubmit = async e => {
+  e.preventDefault();
+  cfg.set({ url: $('s-url').value.trim().replace(/\/+$/, ''), key: $('s-key').value.trim(), email: $('s-email').value.trim() });
+  initClient();
+  if (!sb) { setStatus('err', window.supabase ? 'вкажіть URL і ключ' : 'не завантажено бібліотеку (потрібен інтернет)'); return; }
+  const pass = $('s-pass').value;
+  if (pass) {
+    setStatus('busy');
+    const { error } = await sb.auth.signInWithPassword({ email: cfg.get().email, password: pass });
+    if (error) { setStatus('err', error.message); return; }
+    $('s-pass').value = '';
+  }
+  $('syncDlg').close(); scheduleSync(0);
+};
+
+function initSync() {
+  initClient();
+  if (!sb) setStatus(cfg.get().url && !window.supabase ? 'err' : 'off', 'не завантажено бібліотеку синхронізації (потрібен інтернет)');
+  else scheduleSync(300);
+  window.addEventListener('online', () => scheduleSync(500));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleSync(500); });
+  setInterval(() => scheduleSync(0), 30000);
+}
+
 // ---------- Швидке додавання ----------
 $('quick').onsubmit = e => {
   e.preventDefault();
   const v = readFields('q'); if (!v) return;
-  state.tasks.push({ id: uid(), ...v, done: false, created: Date.now() });
+  state.tasks.push({ id: uid(), ...v, done: false, created: Date.now(), u: Date.now() });
   ['q-title', 'q-due', 'q-sched', 'q-time'].forEach(id => $(id).value = '');
   $('q-dur').value = ''; $('more').open = false;
   save(); render(); $('q-title').focus();
@@ -569,7 +751,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-save(); render();
+store.save(state); render(); initSync();
 setInterval(render, 60000);   // оновлювати «пропущені» щохвилини
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
