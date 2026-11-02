@@ -3,123 +3,170 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1f2937">
+<meta name="theme-color" content="#f7f7f5">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
 <title>Завдання</title>
 <style>
-  :root { --bg:#f4f5f7; --panel:#fff; --text:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#db4c3f; --ok:#2f855a; --warn:#d97706; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#0f172a; --panel:#1f2937; --text:#f3f4f6; --muted:#9ca3af; --line:#374151; --accent:#f87171; --ok:#68d391; --warn:#fbbf24; }
+  :root {
+    color-scheme: light;
+    --bg:#fff; --side:#f7f7f5; --text:#37352f; --muted:#787774; --faint:#9b9a97; --line:#e9e9e7;
+    --hover:#efefed; --active:#e6e6e3; --ink:#2f3437; --focus:#2383e2;
+    --bad:#c4372d; --ok:#2b7a4b; --warn:#a8680f;
   }
   * { box-sizing:border-box; }
-  body { margin:0; font:16px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--text); }
+  body { margin:0; font:14px/1.45 -apple-system, "Segoe UI", Inter, system-ui, sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  button, input, select { font:inherit; color:inherit; }
+  svg.i { width:16px; height:16px; flex-shrink:0; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; vertical-align:-3px; }
   .app { display:flex; height:100dvh; }
-  aside { width:250px; background:var(--panel); border-right:1px solid var(--line); padding:16px 8px; overflow:auto; flex-shrink:0; }
-  aside h2 { font-size:12px; text-transform:uppercase; color:var(--muted); margin:16px 8px 6px; letter-spacing:.05em; }
-  .proj { display:flex; justify-content:space-between; align-items:center; padding:7px 10px; border-radius:8px; cursor:pointer; gap:8px; }
-  .proj > span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .proj:hover { background:var(--bg); }
-  .proj.active { background:var(--bg); font-weight:600; color:var(--accent); }
-  .proj .n { color:var(--muted); font-size:13px; font-weight:400; }
-  .proj .n.bad { color:var(--accent); font-weight:600; }
-  .add-proj { width:100%; margin-top:8px; padding:8px 10px; border:1px dashed var(--line); background:none; color:var(--muted); border-radius:8px; cursor:pointer; text-align:left; font:inherit; }
-  .syncbar { margin-top:16px; padding:10px 8px 0; border-top:1px solid var(--line); }
-  .syncbar button { width:100%; padding:8px 10px; border:1px solid var(--line); background:none; color:var(--text); border-radius:8px; cursor:pointer; text-align:left; font:inherit; }
-  .syncbar .st { font-size:12px; color:var(--muted); margin-top:6px; word-break:break-word; }
+
+  /* ---------- бічна панель ---------- */
+  aside { width:260px; background:var(--side); border-right:1px solid var(--line); padding:10px 8px 8px; overflow:hidden; flex-shrink:0; display:flex; flex-direction:column; }
+  .brand { display:flex; align-items:center; gap:9px; padding:6px 8px 10px; font-weight:600; font-size:14px; }
+  .brand .logo { width:22px; height:22px; border-radius:6px; background:var(--ink); color:#fff; display:grid; place-items:center; }
+  .brand .logo svg { width:13px; height:13px; stroke-width:2.6; }
+  .sidescroll { flex:1; overflow:auto; margin:0 -2px; padding:0 2px; }
+  .navbtn, .proj { display:flex; align-items:center; gap:8px; padding:5px 8px; min-height:28px; border-radius:6px; cursor:pointer; color:var(--text); user-select:none; width:100%; border:0; background:none; text-align:left; }
+  .navbtn:hover, .proj:hover { background:var(--hover); }
+  .navbtn .k { margin-left:auto; font-size:11px; color:var(--faint); border:1px solid var(--line); border-radius:4px; padding:0 5px; background:#fff; }
+  .navbtn svg.i, .proj svg.i { color:var(--muted); }
+  .proj.active { background:var(--active); font-weight:600; }
+  .proj.active svg.i { color:var(--text); }
+  .proj .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .proj .n { color:var(--faint); font-size:12px; font-weight:400; }
+  .proj .n.bad { color:var(--bad); font-weight:600; }
+  .proj .twisty { width:18px; height:18px; display:grid; place-items:center; border-radius:4px; margin-left:-4px; }
+  .proj .twisty:hover { background:var(--active); }
+  .proj .twisty svg.i { width:12px; height:12px; transition:transform .12s; }
+  .proj .twisty.open svg.i { transform:rotate(90deg); }
+  .proj .twisty.none { visibility:hidden; }
+  .sect { display:flex; align-items:center; justify-content:space-between; margin:16px 0 2px; padding:0 8px; font-size:12px; font-weight:600; color:var(--faint); }
+  .sect button { width:22px; height:22px; border:0; background:none; border-radius:5px; cursor:pointer; color:var(--muted); display:grid; place-items:center; opacity:0; transition:opacity .1s; }
+  aside:hover .sect button, .sect button:focus-visible { opacity:1; }
+  .sect button:hover { background:var(--hover); }
+  .syncbar { border-top:1px solid var(--line); margin-top:8px; padding:8px 0 0; }
+  .syncbar button { display:flex; align-items:center; gap:8px; width:100%; padding:5px 8px; border:0; background:none; border-radius:6px; cursor:pointer; text-align:left; color:var(--muted); }
+  .syncbar button:hover { background:var(--hover); }
+  .syncbar .st { font-size:12px; color:var(--faint); padding:2px 8px 0 32px; word-break:break-word; }
   .hint { font-size:12px; color:var(--muted); margin-top:8px; word-break:break-word; }
-  main { flex:1; display:flex; flex-direction:column; min-width:0; }
-  header { display:flex; align-items:center; gap:12px; padding:16px 20px 8px; flex-wrap:wrap; }
-  header h1 { font-size:22px; margin:0; }
+
+  /* ---------- основна область ---------- */
+  main { flex:1; display:flex; flex-direction:column; min-width:0; background:var(--bg); }
+  header { display:flex; align-items:baseline; gap:12px; padding:22px 40px 10px; flex-wrap:wrap; max-width:1180px; width:100%; margin:0 auto; }
+  header h1 { font-size:26px; font-weight:700; letter-spacing:-.01em; margin:0; }
   header .sub { color:var(--muted); font-size:14px; text-transform:capitalize; }
-  .acts { margin-left:auto; display:flex; gap:6px; }
-  .acts button { background:var(--panel); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:6px 10px; cursor:pointer; font:inherit; font-size:13px; }
-  #menu { display:none; background:none; border:0; font-size:22px; color:var(--text); }
-  .list { flex:1; overflow:auto; padding:8px 20px 24px; }
-  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-  .chip { padding:6px 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; font-size:14px; }
-  .chip small { color:var(--muted); margin-left:4px; }
+  .acts { margin-left:auto; display:flex; gap:4px; align-self:center; }
+  .acts button { display:inline-flex; align-items:center; gap:6px; background:none; border:0; color:var(--muted); border-radius:6px; padding:5px 9px; cursor:pointer; font-size:13px; }
+  .acts button:hover { background:var(--hover); color:var(--text); }
+  #menu { display:none; background:none; border:0; padding:4px; color:var(--text); align-self:center; margin-left:-6px; border-radius:6px; }
+  #menu svg.i { width:20px; height:20px; }
+  .list { flex:1; overflow:auto; padding:8px 40px 28px; }
+  .list > * { max-width:1100px; margin-left:auto; margin-right:auto; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer; font-size:13px; }
+  .chip:hover { background:var(--hover); }
+  .chip small { color:var(--faint); }
 
-  /* дашборд */
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:16px; }
-  .stat { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; cursor:pointer; }
-  .stat .v { font-size:26px; font-weight:700; line-height:1.1; }
-  .stat .l { font-size:13px; color:var(--muted); margin-top:2px; }
-  .stat.bad .v { color:var(--accent); }
-  .dash { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); align-items:start; }
-  .col { display:flex; flex-direction:column; gap:16px; min-width:0; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
-  .card.over { border-left:4px solid var(--accent); }
-  .card h3 { font-size:15px; margin:0 0 6px; display:flex; gap:8px; align-items:baseline; }
-  .card h3 .c { color:var(--muted); font-weight:400; font-size:13px; }
-  .card.over h3 { color:var(--accent); }
-  .bar { height:6px; border-radius:3px; background:var(--line); margin:4px 0 8px; overflow:hidden; }
-  .bar i { display:block; height:100%; background:var(--ok); }
-  .day { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:12px 0 2px; }
-  .none { color:var(--muted); font-size:14px; padding:6px 0; }
+  /* ---------- дашборд ---------- */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); border:1px solid var(--line); border-radius:8px; margin-bottom:20px; overflow:hidden; }
+  .stat { padding:12px 16px; cursor:pointer; border-right:1px solid var(--line); background:#fff; }
+  .stat:last-child { border-right:0; }
+  .stat:hover { background:var(--side); }
+  .stat .v { font-size:24px; font-weight:600; line-height:1.15; font-variant-numeric:tabular-nums; }
+  .stat .l { font-size:12px; color:var(--muted); margin-top:1px; }
+  .stat.bad .v { color:var(--bad); }
+  .dash { display:grid; gap:24px; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); align-items:start; }
+  .col { display:flex; flex-direction:column; gap:24px; min-width:0; }
+  .card { background:#fff; border:0; padding:0; }
+  .card h3 { font-size:13px; font-weight:600; margin:0 0 4px; padding-bottom:6px; border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:baseline; }
+  .card h3 .c { color:var(--faint); font-weight:400; font-size:12px; }
+  .card.over h3 { color:var(--bad); border-bottom-color:#efc9c5; }
+  .bar { height:3px; border-radius:2px; background:var(--line); margin:6px 0 4px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--ink); }
+  .day { font-size:12px; font-weight:600; color:var(--muted); margin:14px 0 2px; text-transform:capitalize; }
+  .none { color:var(--faint); font-size:13px; padding:8px 0; }
 
-  .task { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); }
-  .task:last-child { border-bottom:0; }
-  .task input[type=checkbox] { width:22px; height:22px; accent-color:var(--accent); flex-shrink:0; }
-  .task .tm { width:48px; flex-shrink:0; font-size:13px; font-weight:600; line-height:1.15; }
-  .task .tm small { display:block; font-weight:400; color:var(--muted); }
-  .task .tm.no { color:var(--muted); font-weight:400; }
+  .task { display:flex; align-items:flex-start; gap:10px; padding:7px 6px; margin:0 -6px; border-radius:6px; }
+  .task:hover { background:var(--side); }
+  .task input[type=checkbox] { appearance:none; -webkit-appearance:none; width:17px; height:17px; margin:2px 0 0; border:1.5px solid #b9b8b4; border-radius:4px; background:#fff; cursor:pointer; flex-shrink:0; display:grid; place-content:center; }
+  .task input[type=checkbox]:hover { border-color:var(--ink); }
+  .task input[type=checkbox]:checked { background:var(--ink); border-color:var(--ink); }
+  .task input[type=checkbox]:checked::after { content:""; width:9px; height:5px; border:solid #fff; border-width:0 0 2px 2px; transform:rotate(-45deg) translate(1px,-1px); }
+  .task .tm { width:44px; flex-shrink:0; font-size:12px; font-weight:600; line-height:1.3; padding-top:2px; font-variant-numeric:tabular-nums; }
+  .task .tm small { display:block; font-weight:400; color:var(--faint); }
+  .task .tm.no { color:var(--faint); font-weight:400; }
   .task .body { flex:1; min-width:0; cursor:pointer; }
   .task .t { word-break:break-word; }
-  .task.done .t { text-decoration:line-through; color:var(--muted); }
-  .task .meta { display:flex; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:2px; }
-  .meta .late { color:var(--accent); font-weight:600; }
+  .task.done .t { text-decoration:line-through; color:var(--faint); }
+  .task .meta { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:1px; }
+  .meta span { display:inline-flex; align-items:center; gap:4px; }
+  .meta svg.i { width:12px; height:12px; vertical-align:0; }
+  .meta .late { color:var(--bad); font-weight:600; }
   .meta .warn { color:var(--warn); font-weight:600; }
-  .task .del { background:none; border:0; color:var(--muted); font-size:18px; cursor:pointer; opacity:.6; }
-  .empty { color:var(--muted); text-align:center; margin-top:60px; }
-  .projlist { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:6px 16px; }
+  .task .del { background:none; border:0; color:var(--faint); cursor:pointer; opacity:0; border-radius:5px; padding:3px; }
+  .task:hover .del, .task .del:focus-visible { opacity:1; }
+  .task .del:hover { background:var(--active); color:var(--text); }
+  .empty { color:var(--faint); text-align:center; margin-top:60px; }
+  .projlist { padding:0; }
 
-  /* форми (швидке додавання і редагування) */
-  .quick { padding:12px 20px calc(12px + env(safe-area-inset-bottom)); background:var(--panel); border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
-  .quick input, .quick select, .quick button, .edit input, .edit select, .edit button { font:inherit; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); }
-  .quick input:focus, .quick select:focus, .edit input:focus, .edit select:focus { outline:2px solid var(--accent); }
-  #q-title, #e-title { width:100%; padding:14px 16px; border-radius:12px; }
+  /* ---------- форми ---------- */
+  .quick { padding:10px 40px calc(12px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
+  .quick > * { width:100%; max-width:1100px; margin:0 auto; }
+  .quick input, .quick select, .quick button, .edit input, .edit select, .edit button, .syncform input { padding:8px 11px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  .quick input:focus, .quick select:focus, .edit input:focus, .edit select:focus { outline:0; border-color:var(--focus); box-shadow:0 0 0 3px #2383e222; }
+  #q-title, #e-title { width:100%; padding:10px 13px; font-size:15px; }
   .row { display:flex; gap:8px; flex-wrap:wrap; }
-  .row label { display:flex; flex-direction:column; font-size:11px; color:var(--muted); gap:2px; }
+  .row label { display:flex; flex-direction:column; font-size:11px; font-weight:500; color:var(--muted); gap:3px; }
   .row label.grow { flex:1; min-width:130px; }
   .row select, .row input { width:100%; }
-  .row .go, .go { align-self:flex-end; background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important; font-weight:600; cursor:pointer; }
+  .row .go, .go { align-self:flex-end; background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important; font-weight:500; cursor:pointer; }
+  .go:hover { background:#000 !important; }
   .dt { position:relative; display:flex; gap:4px; }
   .dt input.date { flex:1; min-width:0; }
-  .dt .cal { padding:6px 9px; cursor:pointer; }
+  .dt .cal { padding:6px 8px; cursor:pointer; color:var(--muted); display:grid; place-items:center; }
+  .dt .cal:hover { background:var(--hover); }
   .dt input.hid { position:absolute; left:0; bottom:0; width:1px; height:1px; opacity:0; pointer-events:none; padding:0; border:0; }
-  input.bad { outline:2px solid var(--accent); }
-  details.more summary { cursor:pointer; font-size:13px; color:var(--muted); padding:2px 0 6px; user-select:none; }
-  dialog { border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--text); padding:18px; width:min(560px, 94vw); }
-  dialog::backdrop { background:#0006; }
-  .edit h2 { margin:0 0 10px; font-size:18px; }
-  .edit .row { margin-top:8px; }
+  input.bad { border-color:var(--bad) !important; box-shadow:0 0 0 3px #c4372d22 !important; }
+  details.more summary { cursor:pointer; font-size:12px; color:var(--muted); padding:2px 0 6px; user-select:none; }
+  dialog { border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--text); padding:20px; width:min(560px, 94vw); box-shadow:0 12px 40px #0002; }
+  dialog::backdrop { background:#0003; }
+  .edit h2 { margin:0 0 12px; font-size:17px; font-weight:600; }
+  .edit .row { margin-top:10px; }
   .edit .sp { flex:1; }
-  .edit .danger { color:var(--accent); cursor:pointer; }
+  .edit .danger { color:var(--bad); cursor:pointer; }
   .edit .row button { cursor:pointer; }
+  .edit .row button:not(.go):hover { background:var(--hover); }
   @media (max-width:720px) {
-    aside { position:fixed; inset:0 auto 0 0; z-index:5; transform:translateX(-100%); transition:transform .2s; box-shadow:2px 0 12px #0004; }
-    aside.open { transform:none; }
+    aside { position:fixed; inset:0 auto 0 0; z-index:5; transform:translateX(-100%); transition:transform .2s; width:280px; }
+    aside.open { transform:none; box-shadow:2px 0 16px #0003; }
     #menu { display:block; }
+    header { padding:14px 16px 6px; }
+    header h1 { font-size:22px; }
+    .list { padding:8px 16px 24px; }
+    .quick { padding:10px 16px calc(12px + env(safe-area-inset-bottom)); }
     .dash { grid-template-columns:1fr; }
+    .task .del { opacity:.5; }
   }
 </style>
 </head>
 <body>
 <div class="app">
   <aside id="side">
-    <div id="home"></div>
-    <h2>Проєкти</h2>
-    <div id="projects"></div>
-    <button class="add-proj" id="addProj">+ Новий проєкт</button>
+    <div class="brand"><span class="logo" data-ic="check"></span>Завдання</div>
+    <div class="sidescroll">
+      <button class="navbtn" id="newTask"><span data-ic="plus"></span>Нове завдання<span class="k">Q</span></button>
+      <div id="home"></div>
+      <div class="sect"><span>Проєкти</span><button id="addProj" title="Новий проєкт" aria-label="Новий проєкт" data-ic="plus"></button></div>
+      <div id="projects"></div>
+    </div>
     <div class="syncbar">
-      <button id="syncBtn">☁ Синхронізація</button>
+      <button id="syncBtn"><span data-ic="cloud"></span>Синхронізація</button>
       <div class="st" id="syncStatus"></div>
     </div>
   </aside>
   <main>
     <header>
-      <button id="menu" aria-label="Меню">☰</button>
+      <button id="menu" aria-label="Меню" data-ic="menu"></button>
       <h1 id="title">Головна</h1>
       <span class="sub" id="sub"></span>
       <span class="acts" id="acts"></span>
@@ -131,7 +178,7 @@
 
 <dialog id="dlg"><form class="edit" id="editForm"></form></dialog>
 
-<dialog id="syncDlg"><form class="edit" id="syncForm">
+<dialog id="syncDlg"><form class="edit syncform" id="syncForm">
   <h2>Синхронізація (Supabase)</h2>
   <div class="row"><label class="grow">Project URL<input id="s-url" placeholder="https://xxxx.supabase.co" autocomplete="off"></label></div>
   <div class="row"><label class="grow">Публічний ключ (anon / publishable)<input id="s-key" autocomplete="off"></label></div>
@@ -170,6 +217,8 @@ for (const t of state.tasks) {
 }
 
 let current = HOME, lastCurrent = null, editing = null;
+const folded = new Set((() => { try { return JSON.parse(localStorage.getItem('folded')) || []; } catch { return []; } })());
+const saveFolded = () => { try { localStorage.setItem('folded', JSON.stringify([...folded])); } catch {} };
 const save = () => { store.save(state); scheduleSync(); };
 const $ = id => document.getElementById(id);
 
@@ -258,7 +307,7 @@ function fillProjectSelect(sel, value) {
     sel.appendChild(o);
   }
   const n = document.createElement('option');
-  n.value = NEW; n.textContent = '＋ Новий проєкт / підпроєкт…';
+  n.value = NEW; n.textContent = '+ Новий проєкт / підпроєкт…';
   sel.appendChild(n);
   sel.value = byId(value) ? value : INBOX;
   sel.dataset.prev = sel.value;
@@ -278,7 +327,7 @@ function deleteProject(id) {
 // ---------- Поля форми (спільні для додавання та редагування) ----------
 const dateField = (id, label) => `<label class="grow">${label}<span class="dt">
   <input type="text" class="date" id="${id}" inputmode="numeric" placeholder="дд.мм.рррр" maxlength="10" autocomplete="off">
-  <button type="button" class="cal" title="Календар">📅</button>
+  <button type="button" class="cal" title="Календар" data-ic="cal"></button>
   <input type="date" class="hid" tabindex="-1" aria-hidden="true"></span></label>`;
 const projField = p => `<label class="grow">Проєкт / підпроєкт<select id="${p}-proj" class="projsel"></select></label>`;
 const timeField = p => `<label class="grow">Час<input type="text" class="clock" id="${p}-time" inputmode="numeric" placeholder="гг:хх" maxlength="5" autocomplete="off"></label>`;
@@ -367,6 +416,20 @@ document.addEventListener('change', e => {
 });
 
 // ---------- Елементи ----------
+// ---------- Іконки (лінійні, SVG) ----------
+const ICONS = {
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>', plus:'<path d="M12 5v14M5 12h14"/>',
+  home:'<path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/>',
+  inbox:'<path d="M4 13l2.5-7h11L20 13v5H4z"/><path d="M4 13h4.5l1 2h5l1-2H20"/>',
+  folder:'<path d="M3.5 7.5a1.5 1.5 0 011.5-1.5h4l2 2h8a1.5 1.5 0 011.5 1.5v8a1.5 1.5 0 01-1.5 1.5H5A1.5 1.5 0 013.5 17z"/>',
+  caret:'<path d="M9 6l6 6-6 6"/>', cal:'<rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>', flag:'<path d="M6 20V4.5M6 5h11l-2 4 2 4H6"/>',
+  cloud:'<path d="M7 18a4 4 0 01-.6-7.95A5.5 5.5 0 0117 8.5 4.75 4.75 0 0116.5 18z"/>',
+  trash:'<path d="M5 7h14M10 7V4.5h4V7M7 7l1 12.5h8L17 7"/>', edit:'<path d="M5 19l1-4L16.5 4.5l3 3L9 18z"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>', menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+};
+const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
+function hydrateIcons(root = document) { root.querySelectorAll('[data-ic]').forEach(e => { e.insertAdjacentHTML('afterbegin', ic(e.dataset.ic)); e.removeAttribute('data-ic'); }); }
 function mk(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -394,19 +457,19 @@ function taskRow(t, o = {}) {
   body.onclick = () => openEdit(t);
   body.appendChild(mk('div', 't', t.title));
   const meta = mk('div', 'meta');
-  const chip = (text, cls) => meta.appendChild(mk('span', cls || '', text));
+  const chip = (text, cls, icon) => { const e = mk('span', cls || ''); e.innerHTML = ic(icon); e.appendChild(document.createTextNode(text)); meta.appendChild(e); };
 
   const dStr = o.showDate && t.sched ? fmt(t.sched) : '';
   const tStr = (!o.timeCol && t.schedTime) ? (t.schedTime + (endOf(t) ? '–' + endOf(t) : '')) : '';
-  if (dStr || tStr) chip('🗓 ' + [dStr, tStr].filter(Boolean).join(' '), planLate(t) ? 'late' : '');
-  if (t.duration) chip('⏱ ' + fmtDur(t.duration));
+  if (dStr || tStr) chip([dStr, tStr].filter(Boolean).join(' '), planLate(t) ? 'late' : '', 'cal');
+  if (t.duration) chip(fmtDur(t.duration), '', 'clock');
   if (t.due && t.due !== t.sched)
-    chip('⏳ дедлайн ' + fmt(t.due), dueLate(t) ? 'late' : (!t.done && t.due === shift(0)) ? 'warn' : '');
-  if (o.showProject) chip('# ' + projPath(t.project));
+    chip('дедлайн ' + fmt(t.due), dueLate(t) ? 'late' : (!t.done && t.due === shift(0)) ? 'warn' : '', 'flag');
+  if (o.showProject) chip(projPath(t.project), '', 'folder');
   if (meta.children.length) body.appendChild(meta);
   row.appendChild(body);
 
-  const del = mk('button', 'del', '✕'); del.setAttribute('aria-label', 'Видалити');
+  const del = mk('button', 'del'); del.innerHTML = ic('x'); del.setAttribute('aria-label', 'Видалити');
   del.onclick = () => removeTask(t);
   row.appendChild(del);
   return row;
@@ -443,21 +506,30 @@ function render() {
   const openT = state.tasks.filter(t => !t.done);
   const overdue = openT.filter(isOverdue).sort(byPlan);
 
-  // бічна панель (дерево проєктів)
-  const nav = (id, name, count, bad, depth = 0) => {
+  // бічна панель (дерево проєктів, гілки можна згортати)
+  const nav = (id, name, count, bad, o = {}) => {
     const el = mk('div', 'proj' + (id === current ? ' active' : ''));
-    el.style.paddingLeft = (10 + depth * 16) + 'px';
-    el.appendChild(mk('span', '', name));
+    el.style.paddingLeft = (8 + (o.depth || 0) * 16) + 'px';
+    const tw = mk('span', 'twisty' + (o.hasKids ? (folded.has(id) ? '' : ' open') : ' none'));
+    tw.innerHTML = ic('caret');
+    tw.onclick = e => { e.stopPropagation(); folded.has(id) ? folded.delete(id) : folded.add(id); saveFolded(); render(); };
+    if (o.tree) el.appendChild(tw);
+    const icn = mk('span'); icn.innerHTML = ic(o.icon || 'folder'); el.appendChild(icn.firstChild);
+    el.appendChild(mk('span', 'nm', name));
     el.appendChild(mk('span', 'n' + (bad ? ' bad' : ''), count || ''));
     el.onclick = () => { current = id; $('side').classList.remove('open'); render(); };
     return el;
   };
   $('home').innerHTML = '';
-  $('home').appendChild(nav(HOME, '🏠 Головна', overdue.length, true));
+  $('home').appendChild(nav(HOME, 'Головна', overdue.length, true, { icon: 'home' }));
   $('projects').innerHTML = '';
+  const hidden = new Set();                         // нащадки згорнутих проєктів
   for (const { p, depth } of flatTree()) {
-    const ids = descendantIds(p.id);
-    $('projects').appendChild(nav(p.id, p.name, openT.filter(t => ids.has(t.project)).length, false, depth));
+    if (hidden.has(p.parent)) { hidden.add(p.id); continue; }
+    const ids = descendantIds(p.id), hasKids = children(p.id).length > 0;
+    $('projects').appendChild(nav(p.id, p.name, openT.filter(t => ids.has(t.project)).length, false,
+      { depth, tree: true, hasKids, icon: p.id === INBOX ? 'inbox' : 'folder' }));
+    if (hasKids && folded.has(p.id)) hidden.add(p.id);
   }
 
   // список проєктів у формі швидкого додавання
@@ -475,17 +547,17 @@ function render() {
     const proj = byId(current);
     $('title').textContent = projPath(current);
     $('sub').textContent = '';
-    const act = (text, fn) => { const b = mk('button', '', text); b.onclick = fn; acts.appendChild(b); };
-    act('＋ Підпроєкт', () => {
+    const act = (icon, text, fn) => { const b = mk('button'); b.innerHTML = ic(icon); b.appendChild(document.createTextNode(text)); b.onclick = fn; acts.appendChild(b); };
+    act('plus', 'Підпроєкт', () => {
       const id = createProjectPath(prompt(`Назва підпроєкту в «${proj.name}»:`), current);
       if (id) { save(); render(); }
     });
     if (current !== INBOX) {
-      act('✎ Перейменувати', () => {
+      act('edit', 'Перейменувати', () => {
         const n = prompt('Нова назва проєкту:', proj.name);
         if (n && n.trim()) { proj.name = n.trim(); touch(proj); save(); render(); }
       });
-      act('🗑 Видалити', () => deleteProject(current));
+      act('trash', 'Видалити', () => deleteProject(current));
     }
 
     const kids = children(current);
@@ -503,7 +575,7 @@ function render() {
 
     const ids = descendantIds(current);
     const tasks = state.tasks.filter(t => ids.has(t.project)).sort((a, b) => a.done - b.done || byPlan(a, b));
-    if (!tasks.length) { list.appendChild(mk('div', 'empty', 'Тут поки порожньо 🎉')); return; }
+    if (!tasks.length) { list.appendChild(mk('div', 'empty', 'Тут поки порожньо')); return; }
     const box = mk('div', 'projlist');
     tasks.forEach(t => box.appendChild(taskRow(t, { showDate: true, showProject: t.project !== current })));
     list.appendChild(box);
@@ -548,7 +620,7 @@ function render() {
     const bar = mk('div', 'bar'), fill = mk('i'); fill.style.width = (100 * todayDone / todayAll.length) + '%';
     bar.appendChild(fill); ct.appendChild(bar);
     todayAll.forEach(t => ct.appendChild(taskRow(t, { timeCol: true, showProject: true })));
-  } else ct.appendChild(mk('div', 'none', 'На сьогодні нічого немає 🎉'));
+  } else ct.appendChild(mk('div', 'none', 'На сьогодні нічого немає'));
   left.appendChild(ct);
 
   const cu = card('up', 'Майбутні', upcoming.length || '');
@@ -610,12 +682,12 @@ function initClient() {
 }
 function setStatus(kind, msg) {
   const text = {
-    off: '☁ Синхронізацію не налаштовано',
-    login: '☁ Потрібен вхід',
-    busy: '☁ Синхронізація…',
-    offline: '☁ Офлайн — синхронізую пізніше',
-    ok: '☁ Синхронізовано ' + hm(new Date()),
-    err: '⚠ ' + (msg || 'помилка'),
+    off: 'Синхронізацію не налаштовано',
+    login: 'Потрібен вхід',
+    busy: 'Синхронізація…',
+    offline: 'Офлайн: синхронізую пізніше',
+    ok: 'Синхронізовано ' + hm(new Date()),
+    err: 'Помилка: ' + (msg || 'невідома'),
   }[kind];
   $('syncStatus').textContent = text; $('s-info').textContent = text;
 }
@@ -744,6 +816,7 @@ $('addProj').onclick = () => {
 };
 
 $('menu').onclick = () => $('side').classList.toggle('open');
+$('newTask').onclick = () => { $('side').classList.remove('open'); $('q-title').focus(); };
 document.addEventListener('keydown', e => {
   const tag = document.activeElement.tagName;
   if (e.key.toLowerCase() === 'q' && tag !== 'INPUT' && tag !== 'SELECT' && !$('dlg').open) {
@@ -751,7 +824,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-store.save(state); render(); initSync();
+hydrateIcons(); store.save(state); render(); initSync();
 setInterval(render, 60000);   // оновлювати «пропущені» щохвилини
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
